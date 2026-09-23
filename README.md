@@ -62,12 +62,20 @@ Official admin for PHPenomenal PHP 8.6 is @dseguy. Find me here, or on the [PHP 
 You'll need PHP 8.6 on your machine, to check for linting. 
 
 ```
-php -l phenomenal8.6.php 
+php8.6 -l phenomenal8.6.php 
 ```
+
+Here are a few places to get PHP 8.6-beta
+
++ [PHP.net](https://www.php.net/pre-release-builds.php) has pre release versions, including Windows binaries. 
++ You can compile PHP 8.6 from source, with the packages above
++ Docker images are available [PHP 8.6](https://hub.docker.com/_/php/tags?name=8.6) 
++ [PHP on brew](https://github.com/shivammathur/homebrew-php) for mac
++ 
 
 ### check script
 
-There is a basic script [scripts/check-php86-features.php](check-php86-features.php) available to check which PHP 8.6 features are there. 
+There is a basic script [scripts/check-php86-features.php](scripts/check-php86-features.php) available to check which PHP 8.6 features are there. 
 
 ### more information
 
@@ -79,6 +87,7 @@ Here are extra resources for PHP 8.6
 + [PHP 8.6](https://laravel-news.com/php-8-6)
 + [What's New in PHP 8.6: Features, Changes, and Deprecations](https://www.zend.com/blog/php-8-6)
 + [UPGRADING  to PHP 8.6](https://github.com/php/php-src/blob/PHP-8.6/UPGRADING)
++ [PHP 8.6 Enters Beta: What You Should Actually Start Looking At](https://nicolas-dabene.fr/en/blog/php-86-enters-beta-what-you-should-actually-start-looking-at/)
 
 You can submit a PR to add more resources here.
 
