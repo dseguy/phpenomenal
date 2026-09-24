@@ -2,6 +2,8 @@
 
 ![sunrise on the sea, like PHP 8.6 on Internet](banner.jpg)
 
+*[中文版](README.zh-CN.md)*
+
 PHPenomenal 8.6, where developers are challenged to write PHP 8.6 code that uses PHP 8.6 features.
 
 ## The Goal
