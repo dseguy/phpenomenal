@@ -45,15 +45,15 @@ This activity is already started, and ends on November 19th, 2026, at 12:01am GM
 
 ## How to Participate
 
-[Open an issue](../../issues/new) on this repo and declare your intent to participate. You may update the issue as you work on it until the end of the event. Include a README.md to tell what you're doing, and feel free to post dev diaries, sample output, etc. 
+[Open an pr](../../pr/new) on this repo and declare your intent to participate. You may update the issue as you work on it until the end of the event. Include a README.md to tell what you're doing, and feel free to post dev diaries, sample output, etc. 
 
-If you're full of ideas, open a second issue too :) 
+If you're full of ideas, open a second PR too :) 
 
 Also feel free to comment on [other participants' issues](../../issues).
 
 ## Admins
 
-Official admin for PHPenomenal PHP 8.6 is @dseguy. Find me here, or on the [PHP community discord server](https://discord.phpc.chat/).
+Official admin for PHPenomenal PHP 8.6 is Damien Seguy [@dseguy](https://phpc.social/@dseguy) and Jon Purvis [@JonPurvis_](https://x.com/JonPurvis_). Find us here, or on the [PHP community discord server](https://discord.phpc.chat/).
 
 ## Resources
 
@@ -71,7 +71,7 @@ Here are a few places to get PHP 8.6-beta
 + You can compile PHP 8.6 from source, with the packages above
 + Docker images are available [PHP 8.6](https://hub.docker.com/_/php/tags?name=8.6) 
 + [PHP on brew](https://github.com/shivammathur/homebrew-php) for mac
-+ 
++ ...
 
 ### check script
 
