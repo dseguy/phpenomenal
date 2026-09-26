@@ -9,7 +9,7 @@ It runs a fake horse race in your terminal. Each “horse” is named after a PH
 Needs PHP 8.6+:
 
 ```bash
-herd php stampede.php
+herd php stampede/index.php
 ```
 
 Every run is random. The race takes about **five seconds** so you can watch places change live.
@@ -34,7 +34,7 @@ Track goes from **0 to 100**.
 | `Io\Poll` | Race clock that drives each live redraw |
 | `#[\Override]` on constants | `StampedeEngine` / `TurboEngine` `NAME` + `VERSION` |
 | Writes on const-held objects | Mid-race `TOTE->weather = …` / `TOTE->call(…)` |
-| Readonly property defaults | `Runner` defaults for slug, position, engine |
+| Readonly property defaults | `Runner::$position = 0.0` (class body; updates via clone-with) |
 | `SortDirection` | Live board order + final podium (`--direction`) |
 | Stream error mode | Failed open with `StreamErrorMode::Exception` |
 | Enum `__debugInfo()` | Weather dump at the end |
@@ -44,11 +44,11 @@ Track goes from **0 to 100**.
 ## Options
 
 ```bash
-herd php stampede.php --direction=desc
-herd php stampede.php --help
+herd php stampede/index.php --direction=desc
+herd php stampede/index.php --help
 ```
 
 ## Files
 
-- `stampede.php` — the whole app
-- `README.md` — this
+- `index.php` - the whole app
+- `README.md` - this

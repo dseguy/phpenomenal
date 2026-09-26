@@ -8,7 +8,7 @@ declare(strict_types=1);
  * PHPenomenal 8.6 entry: a terminal race where each runner is a PHP 8.6 feature,
  * implemented with those features.
  *
- * Run: herd php stampede.php [--direction=asc|desc]
+ * Run: herd php stampede/index.php [--direction=asc|desc]
  */
 
 use Io\Poll\Context as PollContext;
@@ -94,16 +94,18 @@ final class TurboEngine extends Engine
 
 readonly class Runner
 {
+    /** PHP 8.6: class-body default on a readonly property (not a promoted param). */
+    public float $position = 0.0;
+
     public function __construct(
         public string $name,
         public string $slug = 'unknown',
-        public float $position = 0.0,
         public Engine $engine = new StampedeEngine(),
     ) {}
 
     public function withPosition(float $position): self
     {
-        return new self($this->name, $this->slug, $position, $this->engine);
+        return clone($this, ['position' => $position]);
     }
 }
 
@@ -426,7 +428,7 @@ function printHelp(): void
     echo <<<'HELP'
 
   Usage:
-    herd php stampede.php [--direction=asc|desc]
+    herd php stampede/index.php [--direction=asc|desc]
 
   Options:
     --direction    SortDirection for the podium (default desc)
