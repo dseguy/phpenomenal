@@ -42,12 +42,15 @@ final class Task implements Labelled
     #[\Override]
     const string KIND = 'task';
 
+    public readonly int $priority = 5;
+
     public function __construct(
         public readonly string $name,
         public readonly Time\Duration $duration,
         // Readonly property defaults: most tasks are 'normal' priority, so bake it in.
-        public readonly int $priority = 5,
+        ?int $priority = 6,
     ) {
+        $this->priority ??= $priority;
     }
 }
 
