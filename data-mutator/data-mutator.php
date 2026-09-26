@@ -16,13 +16,19 @@ class DataMutator implements MutatorContract {
     #[\Override]
     const string HANDLER = 'DataMutatorHandler'; // Valid in 8.6!
 
+   public readonly int $maxLimit = 100; // Readonly properties can now have defaults
+   public readonly string $mode = 'standard';
+
     // ------------------------------------------------------------------------------
     // PHP 8.6 Feature: readonly property defaults
     // ------------------------------------------------------------------------------
     public function __construct(
-        public readonly int $maxLimit = 100, // Readonly properties can now have defaults
-        public readonly string $mode = 'standard'
-    ) {}
+        ?int $maxLimit,
+        ?string $mode
+    ) {
+        $this->maxLimit ??= $maxLimit;
+        $this->mode ??= $mode;
+    }
 }
 
 // ------------------------------------------------------------------------------
