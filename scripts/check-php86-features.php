@@ -72,25 +72,17 @@ $checks[] = new FeatureCheck(
     },
 );
 
-// Time\Duration: the tokenizer may hand back a single qualified-name
-// token or three separate ones (Time, \, Duration) depending on context.
+// Exact class-name matching, including a leading namespace separator.
+// This is lexical: imports/aliases and the current namespace are not resolved.
 $checks[] = new FeatureCheck(
     'Time\\Duration',
     'a reference to the Time\\Duration class',
     function (array $tokens): ?int {
-        foreach ($tokens as $i => $token) {
-            if ($token->is([T_NAME_QUALIFIED, T_STRING]) && str_contains($token->text, 'Time\\Duration')) {
+        foreach ($tokens as $token) {
+            if ($token->is([T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_STRING])
+                && strcasecmp(ltrim($token->text, '\\'), 'Time\\Duration') === 0
+            ) {
                 return $token->line;
-            }
-            if ($token->text === 'Time') {
-                $sep = nextSignificant($tokens, $i, 1);
-                $name = $sep !== null ? nextSignificant($tokens, $sep, 1) : null;
-                if ($sep !== null && $name !== null
-                    && $tokens[$sep]->is(T_NS_SEPARATOR)
-                    && $tokens[$name]->text === 'Duration'
-                ) {
-                    return $token->line;
-                }
             }
         }
         return null;
@@ -114,7 +106,41 @@ $checks[] = new FeatureCheck(
     },
 );
 
-// #[\Override] directly attached to a const declaration.
+/** Inspect one attribute group, matching names only (never arguments). */
+function inspectAttributeGroup(array $tokens, int $start): ?array
+{
+    $depth = 1;
+    $expectName = true;
+    $sawOverride = false;
+    for ($i = $start + 1; isset($tokens[$i]); $i++) {
+        $token = $tokens[$i];
+        if ($token->is([T_WHITESPACE, T_COMMENT, T_DOC_COMMENT])) {
+            continue;
+        }
+        if ($depth === 1 && $expectName) {
+            if ($token->is([T_STRING, T_NAME_FULLY_QUALIFIED])
+                && strcasecmp(ltrim($token->text, '\\'), 'Override') === 0
+            ) {
+                $sawOverride = true;
+            }
+            $expectName = false;
+        }
+        if ($token->is(T_ATTRIBUTE) || in_array($token->text, ['[', '(', '{'], true)) {
+            $depth++;
+        } elseif (in_array($token->text, [']', ')', '}'], true)) {
+            $depth--;
+            if ($depth === 0) {
+                return [$i, $sawOverride];
+            }
+        } elseif ($depth === 1 && $token->text === ',') {
+            $expectName = true;
+        }
+    }
+    return null;
+}
+
+// Attribute groups may precede visibility/final modifiers on a constant.
+// Attribute aliases and namespace resolution remain outside this lexical check.
 $checks[] = new FeatureCheck(
     '#[\\Override] on a constant',
     'an #[\\Override] attribute immediately before a const declaration',
@@ -123,22 +149,23 @@ $checks[] = new FeatureCheck(
             if (!$token->is(T_ATTRIBUTE)) {
                 continue;
             }
-            $depth = 1;
-            $j = $i;
+            $after = $i;
             $sawOverride = false;
-            while ($depth > 0 && isset($tokens[++$j])) {
-                if ($tokens[$j]->text === '[') {
-                    $depth++;
-                } elseif ($tokens[$j]->text === ']') {
-                    $depth--;
-                } elseif (str_contains($tokens[$j]->text, 'Override')) {
-                    $sawOverride = true;
+            do {
+                $group = inspectAttributeGroup($tokens, $after);
+                if ($group === null) {
+                    break;
                 }
-            }
-            if (!$sawOverride) {
+                [$end, $override] = $group;
+                $sawOverride = $sawOverride || $override;
+                $after = nextSignificant($tokens, $end);
+            } while ($after !== null && $tokens[$after]->is(T_ATTRIBUTE));
+            if ($group === null || !$sawOverride) {
                 continue;
             }
-            $after = nextSignificant($tokens, $j, 1);
+            while ($after !== null && $tokens[$after]->is([T_PUBLIC, T_PROTECTED, T_PRIVATE, T_FINAL])) {
+                $after = nextSignificant($tokens, $after);
+            }
             if ($after !== null && $tokens[$after]->is(T_CONST)) {
                 return $token->line;
             }
@@ -147,31 +174,111 @@ $checks[] = new FeatureCheck(
     },
 );
 
-// Writes on a const-held object: BARE_NAME->prop (assignment or ++/--),
-// where BARE_NAME isn't itself preceded by -> or :: (i.e. not a chained
-// property access, but a fresh identifier such as a global constant).
+// Explicit identifier token IDs verified as class-constant names on PHP 8.6.
+// T_CLASS (::class), variables, literals and multiword tokens are excluded.
+const CLASS_CONSTANT_NAME_TOKENS = [
+    T_STRING, T_DEFAULT, T_LIST, T_MATCH, T_ECHO, T_IF, T_ELSEIF, T_ELSE, T_ENDIF,
+    T_DO, T_WHILE, T_ENDWHILE, T_FOR, T_ENDFOR, T_FOREACH, T_ENDFOREACH,
+    T_DECLARE, T_ENDDECLARE, T_AS, T_TRY, T_CATCH, T_FINALLY, T_THROW,
+    T_USE, T_INSTEADOF, T_GLOBAL, T_VAR, T_UNSET, T_ISSET, T_EMPTY,
+    T_CONTINUE, T_GOTO, T_FUNCTION, T_FN, T_CONST, T_RETURN, T_BREAK,
+    T_SWITCH, T_ENDSWITCH, T_CASE, T_READONLY, T_STATIC, T_ABSTRACT,
+    T_FINAL, T_PRIVATE, T_PROTECTED, T_PUBLIC, T_INCLUDE, T_INCLUDE_ONCE,
+    T_EVAL, T_REQUIRE, T_REQUIRE_ONCE, T_LOGICAL_AND, T_LOGICAL_OR,
+    T_LOGICAL_XOR, T_PRINT, T_YIELD, T_INSTANCEOF, T_NEW, T_CLONE, T_EXIT,
+    T_TRAIT, T_INTERFACE, T_EXTENDS, T_IMPLEMENTS, T_NAMESPACE,
+    T_ARRAY, T_CALLABLE, T_CLASS_C, T_METHOD_C, T_FILE, T_LINE,
+    T_FUNC_C, T_TRAIT_C, T_NS_C, T_DIR,
+];
+
+/** Closing bracket of an array dimension, or null if it is unbalanced. */
+function arrayDimensionEnd(array $tokens, int $start): ?int
+{
+    $depth = 1;
+    for ($i = $start + 1; isset($tokens[$i]); $i++) {
+        // Check punctuation IDs so brackets in comments/string text never count.
+        if ($tokens[$i]->id === ord('[') || $tokens[$i]->is(T_ATTRIBUTE)) {
+            $depth++;
+        } elseif ($tokens[$i]->id === ord(']') && --$depth === 0) {
+            return $i;
+        }
+    }
+    return null;
+}
+
+// Writes rooted in a global or scoped constant, through named properties.
+// Scopes can be class names, self/parent/static, or variables holding a class/object.
+// Dimensions may lead to another property; a final array element is not counted.
+// Direct targets after foreach `as` (optionally `&`) and `= &` references count.
+// Destructuring/list targets and keyed foreach value targets remain unsupported.
+// This is lexical: symbols, dynamic properties and computed scopes are not resolved.
 $checks[] = new FeatureCheck(
     'writes on const-held objects',
     'CONST->prop = ... or CONST->prop++',
     function (array $tokens): ?int {
         foreach ($tokens as $i => $token) {
-            if (!$token->is(T_STRING)) {
+            if (!$token->is([T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE, T_STATIC, T_VARIABLE])) {
                 continue;
             }
             $prev = nextSignificant($tokens, $i, -1);
-            if ($prev !== null && in_array($tokens[$prev]->text, ['->', '::'], true)) {
-                continue; // part of a chain, not a fresh identifier
+            if ($prev !== null && ($tokens[$prev]->is(T_NEW)
+                || in_array($tokens[$prev]->text, ['->', '?->', '::', '\\'], true))
+            ) {
+                continue; // not the root of a constant expression
             }
-            $arrow = nextSignificant($tokens, $i, 1);
-            if ($arrow === null || $tokens[$arrow]->text !== '->') {
+            $next = nextSignificant($tokens, $i);
+            if ($next !== null && $tokens[$next]->is(T_DOUBLE_COLON)) {
+                $constant = nextSignificant($tokens, $next);
+                if ($constant === null || !$tokens[$constant]->is(CLASS_CONSTANT_NAME_TOKENS)) {
+                    continue; // exclude static properties and ::class
+                }
+                $next = nextSignificant($tokens, $constant);
+            } elseif ($token->is([T_VARIABLE, T_STATIC])) {
+                continue; // variables are allowed only as class-constant scopes
+            }
+
+            $sawProperty = false;
+            while ($next !== null && $tokens[$next]->is(T_OBJECT_OPERATOR)) {
+                $property = nextSignificant($tokens, $next);
+                if ($property === null || !$tokens[$property]->is(T_STRING)) {
+                    $next = null;
+                    break;
+                }
+                $sawProperty = true;
+                $next = nextSignificant($tokens, $property);
+                $crossedDimension = false;
+                while ($next !== null && $tokens[$next]->id === ord('[')) {
+                    $end = arrayDimensionEnd($tokens, $next);
+                    $next = $end !== null ? nextSignificant($tokens, $end) : null;
+                    $crossedDimension = true;
+                }
+                if ($crossedDimension && ($next === null || !$tokens[$next]->is(T_OBJECT_OPERATOR))) {
+                    $next = null; // require a property after the dimensions
+                    break;
+                }
+            }
+            if (!$sawProperty || $next === null) {
                 continue;
             }
-            $prop = nextSignificant($tokens, $arrow, 1);
-            if ($prop === null || !$tokens[$prop]->is(T_STRING)) {
+            // A call, nullsafe access or scope operator means
+            // this is not the final named property being written.
+            if (in_array($tokens[$next]->text, ['(', '?->', '::'], true)) {
                 continue;
             }
-            $op = nextSignificant($tokens, $prop, 1);
-            if ($op !== null && in_array($tokens[$op]->text, ASSIGN_OPERATORS, true)) {
+            $postfixOrAssignment = in_array($tokens[$next]->text, ASSIGN_OPERATORS, true);
+            $prefix = $prev !== null && $tokens[$prev]->is([T_INC, T_DEC]);
+            $context = $prev;
+            $byReference = $prev !== null && $tokens[$prev]->is([
+                T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG, T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG,
+            ]);
+            if ($byReference) {
+                $context = nextSignificant($tokens, $prev, -1);
+            }
+            $foreachTarget = $context !== null && $tokens[$context]->is(T_AS)
+                && ($tokens[$next]->text === ')' || (!$byReference && $tokens[$next]->text === '=>'));
+            $referenceAssignment = $byReference && $context !== null && $tokens[$context]->text === '='
+                && in_array($tokens[$next]->text, [';', ',', ')', ']'], true);
+            if ($postfixOrAssignment || $prefix || $foreachTarget || $referenceAssignment) {
                 return $token->line;
             }
         }
