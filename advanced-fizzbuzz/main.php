@@ -52,7 +52,7 @@ class HoldsNumber {
 define('NEXT_NUMBER_HOLDER', new HoldsNumber());
 
 /**
- * Name of the command being run
+ * Operation being run
  *
  * New PHP 8.6 features:
  * - for the $showCommand property:
@@ -124,6 +124,8 @@ class NumberGenerator extends Operation {
  * - in doRun():
  *   - https://wiki.php.net/rfc/sort_direction_enum
  *   - https://wiki.php.net/rfc/poll_api
+ *   - new ARRAY_FILTER_USE_VALUE constant, php/php-src#15647
+ *   - https://wiki.php.net/rfc/partial_function_application_v2
  * - in isMultipleOf():
  *   - https://wiki.php.net/rfc/parameter-doccomments
  * - in handleGeneratedNumber():
@@ -134,7 +136,7 @@ class FizzBuzzPrinter extends Operation {
 	public const CommandName COMMAND = CommandName::FizzBuzzPrinter;
 
 	protected function doRun(array $args) {
-		$cmd = PHP_BINARY . " " . __FILE__ . " --operation=runNumberGenerator";
+		$cmd = PHP_BINARY . ' ' . __FILE__ . ' --operation=runNumberGenerator';
 		$cmd .= ' --delay=' . $args['delay'];
 		$cmd .= ' --direction=' . match ($args['direction']) {
 			SortDirection::Ascending => 'ASC',
@@ -144,7 +146,7 @@ class FizzBuzzPrinter extends Operation {
 		$descriptors = [
 			['pipe', 'r'], // stdin
 			['pipe', 'w'], // stdout
-			['file', '/dev/null', 'a'], //stderr
+			['file', '/dev/null', 'a'], // stderr
 		];
 		$pipes = [];
 		$process = proc_open($cmd, $descriptors, $pipes);
@@ -162,7 +164,7 @@ class FizzBuzzPrinter extends Operation {
 							// Handle the first entry including the output of
 							// the command by splitting
 							explode("\n", $content)
-								|> array_filter(?, is_numeric(?))
+								|> array_filter(?, is_numeric(?), ARRAY_FILTER_USE_VALUE)
 								|> array_map(self::handleGeneratedNumber(?), ?);
 							break;
 						case \Io\Poll\Event::HangUp:
@@ -197,9 +199,9 @@ class FizzBuzzPrinter extends Operation {
 		$printBuzz = self::isMultipleOf(?, 5);
 		$number = (int)$value;
 		$result = match (true) {
-			$printFizzBuzz($number) => "FizzBuzz",
-			$printFizz($number) => "Fizz",
-			$printBuzz($number) => "Buzz",
+			$printFizzBuzz($number) => 'FizzBuzz',
+			$printFizz($number) => 'Fizz',
+			$printBuzz($number) => 'Buzz',
 			default => $number,
 		};
 		echo "$result\n";
@@ -215,6 +217,8 @@ class FizzBuzzPrinter extends Operation {
  *   - https://wiki.php.net/rfc/override_constants
  * - for the $showCommand property:
  *   - https://wiki.php.net/rfc/readonly_property_defaults
+ * - in doRun():
+ *   - https://wiki.php.net/rfc/uri_followup
  */
 class HelpOperation extends Operation {
 	#[\Override]
@@ -226,6 +230,12 @@ class HelpOperation extends Operation {
 	protected function doRun(array $args) {
 		$usedHelpArg = isset($args['help']);
 		echo "PHP 8.6 Advanced FizzBuzz implementation\n";
+		$authorSite = new \Uri\Rfc3986\UriBuilder()
+			->setScheme('https')
+			->setHost('scherzer.dev')
+			->build()
+			->toString();
+		echo "Created by Daniel Scherzer <$authorSite>\n";
 		echo "Options:\n";
 		echo "\t[--help]\t\t\t\tShow this help information\n";
 		echo "\t[--operation=<operation>]\t\tOperation (default: runFizzBuzz)\n";
@@ -253,7 +263,7 @@ class HelpOperation extends Operation {
 	}
 }
 
-$options = getopt('', ["operation::", "delay::", "direction::", "help"]);
+$options = getopt('', ['operation::', 'delay::', 'direction::', 'help']);
 
 if (isset($options['help'])) {
 	new HelpOperation()->run($options);
@@ -264,7 +274,7 @@ $options['direction'] = match ($options['direction'] ?? false) {
 	'ASC' => SortDirection::Ascending,
 	'DESC' => SortDirection::Descending,
 	false => SortDirection::Ascending,
-	default => throw new ValueError("If provided, --direction must be ASC or DESC"),
+	default => throw new ValueError('If provided, --direction must be ASC or DESC'),
 };
 
 $options['delay'] = $options['delay'] ?? '200';

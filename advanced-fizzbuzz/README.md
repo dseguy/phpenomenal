@@ -29,18 +29,23 @@ application to simplify the code and chain together callbacks.
 tracks the next number in an instance of the `HoldsNumber` class, which is
 stored in the global `NEXT_NUMBER_HOLDER` constant. The next number is updated
 using `++NEXT_NUMBER_HOLDER->number`.
-- The `\\SortDirection` enum: the output can be either ascending ("1, 2, Fizz") or
+- The `\SortDirection` enum: the output can be either ascending ("1, 2, Fizz") or
 descending ("Buzz, Fizz, 98"); internally, the direction is tracked using the
-new `\\SortDirection` enum.
+new `\SortDirection` enum.
 - Polling API: internally, the main process starts a new process that just
 prints out the numbers from 1 to 100 (or from 100 to 1), and listens to that
 process using the new polling API.
-- The `\\Time\\Duration` class: the speed at which values are printed is controlled
+- The `\Time\Duration` class: the speed at which values are printed is controlled
 by making `usleep()` calls between different values; the duration of the sleep
-is calculated using the new `\\Time\\Duration` class.
+is calculated using the new `\Time\Duration` class.
 - The `clamp()` function: the duration of the sleep between printing values is
 restricted to being at least 50 milliseconds and at most 500 milliseconds using
 the new `clamp()` function.
 - Parameter documentation comments: `FizzBuzzPrinter::isMultipleOf()` uses the
 support for documentation comments to annotate the two parameters, though that
 documentation is not currently actually read.
+- The `ARRAY_FILTER_USE_VALUE` constant: the `array_filter()` call in
+`FizzBuzzPrinter::doRun()` uses this new constant to make it clear that only the
+array values are being filtered.
+- ext/uri followups: the help command uses the new `\Uri\Rfc3986\UriBuilder`
+class to build the link to the author's website.
